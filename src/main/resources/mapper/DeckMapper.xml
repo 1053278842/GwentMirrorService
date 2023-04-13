@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ll.gwentmirror.mapper.IDeckMapper">
+    
+    <resultMap id="DeckMap" type="com.ll.gwentmirror.entity.Deck">
+        <id property="id" column="id"/>
+        <result property="fromPlayerId" column="from_player_id"/>
+        <result property="leaderCardId" column="leader_card_id"/>
+        <result property="stratagemCardId" column="stratagem_card_id"/>
+        <result property="deckWebId" column="deck_web_id"/>
+        <result property="factionId" column="faction_id"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateTime" column="updateTime"/>
+    </resultMap>
+
+    <insert id="insertBatchDeck" parameterType="java.util.List">
+        INSERT INTO deck (id,cards,name,author,from_player_id,time,leader_card_id,
+                          stratagem_card_id,deck_web_id,faction_id) VALUES
+        <foreach collection="list" separator="," item="deck">
+            (#{deck.id},#{deck.cards},#{deck.name},#{deck.author},#{deck.fromPlayerId},#{deck.time},#{deck.leaderCardId},
+             #{deck.stratagemCardId},#{deck.deckWebId},#{deck.factionId})
+        </foreach>
+        ON DUPLICATE KEY UPDATE total = total+1,
+            name = IF ( time &lt; values(time), name, VALUES(name)),
+            author = IF ( time &lt; values(time), author, VALUES(author)),
+            time = IF ( time &lt; values(time), time, VALUES(time))
+    </insert>
+
+    <insert id="insertDeckOnDuplication" parameterType="Deck">
+        INSERT INTO deck (id,cards,name,author,from_player_id,time,leader_card_id,
+        stratagem_card_id,deck_web_id,faction_id) VALUES
+            (#{id},#{cards},#{name},#{author},#{fromPlayerId},#{time},#{leaderCardId},
+            #{stratagemCardId},#{deckWebId},#{factionId})
+        ON DUPLICATE KEY UPDATE total = total+1,
+        name = IF ( time &lt; values(time), name, VALUES(name)),
+        author = IF ( time &lt; values(time), author, VALUES(author)),
+        time = IF ( time &lt; values(time), time, VALUES(time))
+    </insert>
+
+    <select id="getListByIds" resultMap="DeckMap" parameterType="int">
+        SELECT id, cards, name, author, from_player_id, time, leader_card_id, stratagem_card_id, deck_web_id, faction_id, create_time, update_time, total
+        FROM deck
+        WHERE 1=1
+        <foreach collection="idArray" item="cid" open="and" separator="and" >
+            LOCATE(#{cid},cards)>0
+        </foreach>
+        ORDER BY ${sortFiled} DESC
+        <if test="!isNoPage">
+            LIMIT #{pageStart},#{pageEnd}
+        </if>
+    </select>
+
+
+</mapper>

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ll.gwentmirror.mapper.IPlayerMapper">
+
+    <insert id="saveBatchAddRepeatedTime" parameterType="java.util.List">
+        INSERT INTO player (service_id, name, paragon_level, mmr, rank) VALUES
+        <foreach collection="list" separator="," item="obj">
+            (#{obj.serviceId},#{obj.name},#{obj.paragonLevel},#{obj.mmr},#{obj.rank})
+        </foreach>
+        ON DUPLICATE KEY UPDATE repeated_times = repeated_times + 1,
+            name = VALUES(name),paragon_level = VALUES(paragon_level),rank = VALUES(rank),mmr = VALUES(mmr);
+    </insert>
+</mapper>
