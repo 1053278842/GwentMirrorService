@@ -15,8 +15,6 @@ import javax.servlet.http.HttpServletRequest;
 import java.io.*;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Objects;
-import java.util.UUID;
 
 /**
  * |       |\__/,|   (`\
@@ -36,7 +34,7 @@ public class FileController {
 
     @RequestMapping("/uploadFile")
     public String uploadFile() {
-        return "index";
+        return "upload";
     }
 
     @PostMapping("/upload")
