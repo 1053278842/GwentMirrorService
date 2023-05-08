@@ -44,4 +44,10 @@ public interface IDeckMapper extends BaseMapper<Deck> {
      */
     List<Deck> getListByIds(@Param(value = "idArray")String[] idArray,@Param(value = "sortFiled") String sortFiled,
                             @Param(value = "pageStart")int pageStart,@Param(value = "pageEnd") int pageEnd,@Param(value = "isNoPage") boolean isNoPage);
+
+    /**
+     * 获取最近版本的所有卡组
+     * @return
+     */
+    List<Deck> getListLast();
 }

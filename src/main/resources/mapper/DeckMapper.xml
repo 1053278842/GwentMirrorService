@@ -51,5 +51,14 @@
         </if>
     </select>
 
+    <select id="getListLast" resultType="com.ll.gwentmirror.entity.Deck">
+        SELECT *
+        FROM deck
+        WHERE create_time > (SELECT create_time
+                             FROM version
+                             ORDER BY create_time DESC
+                             LIMIT 0, 1);
+    </select>
+
 
 </mapper>

@@ -109,4 +109,10 @@ public class DeckServiceImpl extends ServiceImpl<IDeckMapper,Deck> implements ID
         return decksJson;
     }
 
+    @Override
+    public List<Deck> getListLast() {
+        // 1、找到最近的
+        return deckMapper.getListLast();
+    }
+
 }
