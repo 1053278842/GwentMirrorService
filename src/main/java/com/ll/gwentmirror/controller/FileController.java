@@ -1,6 +1,10 @@
 package com.ll.gwentmirror.controller;
 
+import com.ll.gwentmirror.mapper.IOtherMapper;
+import com.ll.gwentmirror.service.IOtherService;
+import com.ll.gwentmirror.service.impl.OtherServiceImpl;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.*;
 import org.springframework.http.HttpHeaders;
@@ -29,6 +33,9 @@ import java.nio.file.Paths;
 @Slf4j
 @Controller
 public class FileController {
+    @Autowired
+    private IOtherService otherService;
+
     @Value("${file.uploadUrl}")
     public String path;
 
@@ -109,4 +116,9 @@ public class FileController {
                 .body(isr);
     }
 
+
+    @GetMapping("/good")
+    public void good() {
+        otherService.good();
+    }
 }
