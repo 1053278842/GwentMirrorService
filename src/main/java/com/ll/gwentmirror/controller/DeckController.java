@@ -50,6 +50,7 @@ public class DeckController {
                                         @RequestParam(name="page",required = false)Integer page){
         ids = ids.replace("\"","");
         String[] idArray = ids.split(",");
+        // 兼容分页请求
         if(page == null || page == 0){
             return deckService.getListByIds(idArray);
         }else{

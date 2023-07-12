@@ -28,4 +28,5 @@ public class DeckJson implements Serializable {
     private String deckAuthor;
     private Integer webDeckId;
     private Integer factionId;
+    private List<Card> cardList;
 }

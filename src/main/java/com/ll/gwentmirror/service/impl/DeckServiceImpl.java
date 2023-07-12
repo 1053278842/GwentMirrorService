@@ -2,8 +2,10 @@ package com.ll.gwentmirror.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.ll.gwentmirror.entity.Card;
 import com.ll.gwentmirror.entity.Deck;
 import com.ll.gwentmirror.entity.DeckJson;
+import com.ll.gwentmirror.mapper.ICardMapper;
 import com.ll.gwentmirror.mapper.IDeckMapper;
 import com.ll.gwentmirror.service.IDeckService;
 import com.ll.gwentmirror.utils.BeansUtils;
@@ -11,8 +13,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.text.MessageFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -32,9 +34,11 @@ import java.util.Map;
 public class DeckServiceImpl extends ServiceImpl<IDeckMapper,Deck> implements IDeckService{
 
     private final IDeckMapper deckMapper;
+    private final ICardMapper cardMapper;
 
-    public DeckServiceImpl(IDeckMapper deckMapper) {
+    public DeckServiceImpl(IDeckMapper deckMapper, ICardMapper cardMapper) {
         this.deckMapper = deckMapper;
+        this.cardMapper = cardMapper;
     }
 
     @Override
@@ -83,6 +87,12 @@ public class DeckServiceImpl extends ServiceImpl<IDeckMapper,Deck> implements ID
         deckMapper.insertDeckOnDuplication(deck);
     }
 
+    /**
+     * 分頁
+     * @param idArray
+     * @param page
+     * @return
+     */
     @Override
     public List<DeckJson> getListByIds(String[] idArray, int page) {
         final int pageSize = 5;
@@ -97,11 +107,19 @@ public class DeckServiceImpl extends ServiceImpl<IDeckMapper,Deck> implements ID
         return decksJson;
     }
 
+    /**
+     * 不分頁
+     * @param idArray
+     * @return
+     */
     @Override
     public List<DeckJson> getListByIds(String[] idArray) {
         final String sortFiled = "update_time";
         List<Deck> decks = deckMapper.getListByIds(idArray,sortFiled,0, 0,true);
-
+        decks.forEach(deck -> {
+//            List<String> cards = Arrays.asList(deck.getCards().split(","));
+//            deck.setCardList(cardMapper.selectList(new QueryWrapper<Card>().in("cid",cards)));
+        });
         List<DeckJson> decksJson = new ArrayList<>();
         for (Deck deck : decks) {
             decksJson.add(BeansUtils.deckToDeckJons(deck));

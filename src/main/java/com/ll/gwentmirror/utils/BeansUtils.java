@@ -97,6 +97,8 @@ public class BeansUtils {
             }
         }
         deckJson.setSortedCtIds(sortedCtIds);
+        // card
+        deckJson.setCardList(deck.getCardList());
         return deckJson;
     }
 

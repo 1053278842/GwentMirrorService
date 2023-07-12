@@ -9,6 +9,7 @@ import lombok.Data;
 import java.io.Serializable;
 import java.math.BigInteger;
 import java.sql.Timestamp;
+import java.util.List;
 
 /**
  * |       |\__/,|   (`\
@@ -61,4 +62,6 @@ public class Deck implements Serializable {
 
     @TableField("total")
     private Integer total;
+
+    private List<Card> cardList;
 }

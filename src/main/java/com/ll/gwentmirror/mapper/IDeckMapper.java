@@ -1,9 +1,11 @@
 package com.ll.gwentmirror.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.ll.gwentmirror.entity.Card;
 import com.ll.gwentmirror.entity.Deck;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
+import org.apache.ibatis.annotations.Select;
 
 import java.util.List;
 
@@ -44,4 +46,8 @@ public interface IDeckMapper extends BaseMapper<Deck> {
      */
     List<Deck> getListByIds(@Param(value = "idArray")String[] idArray,@Param(value = "sortFiled") String sortFiled,
                             @Param(value = "pageStart")int pageStart,@Param(value = "pageEnd") int pageEnd,@Param(value = "isNoPage") boolean isNoPage);
+
+    @Select("SELECT * FROM Card WHERE cid IN (${cardIds})")
+    List<Card> findCardsByDeckId(@Param("cardIds") String cardIds);
+
 }
