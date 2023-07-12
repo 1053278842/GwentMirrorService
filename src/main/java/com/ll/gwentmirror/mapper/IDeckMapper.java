@@ -50,4 +50,5 @@ public interface IDeckMapper extends BaseMapper<Deck> {
     @Select("SELECT * FROM Card WHERE cid IN (${cardIds})")
     List<Card> findCardsByDeckId(@Param("cardIds") String cardIds);
 
+    List<Deck> getListByIds();
 }
