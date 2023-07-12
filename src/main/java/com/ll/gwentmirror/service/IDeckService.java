@@ -66,4 +66,10 @@ public interface IDeckService {
      * @return
      */
     List<DeckJson> getListByIds(String[] idArray);
+
+    /**
+     * 获取最近版本的所有卡组
+     * @return
+     */
+    List<Deck> getListLast();
 }

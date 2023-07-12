@@ -43,12 +43,22 @@
         FROM deck
         WHERE 1=1
         <foreach collection="idArray" item="cid" open="and" separator="and" >
-            LOCATE(#{cid},cards)>0
+            LOCATE(#{cid},cards)>0 OR stratagem_card_id=#{cid}
         </foreach>
+
         ORDER BY ${sortFiled} DESC
         <if test="!isNoPage">
             LIMIT #{pageStart},#{pageEnd}
         </if>
+    </select>
+
+    <select id="getListLast" resultType="com.ll.gwentmirror.entity.Deck">
+        SELECT *
+        FROM deck
+        WHERE create_time > (SELECT create_time
+                             FROM version
+                             ORDER BY create_time DESC
+                             LIMIT 0, 1);
     </select>
 
 
