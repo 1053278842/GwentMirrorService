@@ -51,4 +51,6 @@ public interface IDeckMapper extends BaseMapper<Deck> {
     List<Card> findCardsByDeckId(@Param("cardIds") String cardIds);
 
     List<Deck> getListByIds();
+
+    List<Deck> getListLast();
 }

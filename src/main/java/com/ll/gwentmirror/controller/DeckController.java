@@ -3,12 +3,15 @@ package com.ll.gwentmirror.controller;
 import com.ll.gwentmirror.entity.Deck;
 import com.ll.gwentmirror.entity.DeckJson;
 import com.ll.gwentmirror.service.IDeckService;
+import com.ll.gwentmirror.utils.BeansUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
+import java.util.stream.Collectors;
 
 /**
  * |       |\__/,|   (`\
@@ -58,6 +61,23 @@ public class DeckController {
         }
     }
 
+    @GetMapping("/getRandomDecksLast")
+    public List<DeckJson> getRandomDecksLast(@RequestParam(name = "num", defaultValue = "0") Integer num) {
+        List<Deck> allDeck = deckService.getListLast();
+        // 如果传参为0或者为空，则返回搜索结果
+        // 反之返回随机num个
+        if (num == 0) {
+            return allDeck.stream()
+                    .map(BeansUtils::deckToDeckJons)
+                    .collect(Collectors.toList());
+        } else {
+            return allDeck.stream()
+                    .map(BeansUtils::deckToDeckJons)
+                    .sorted((a, b) -> new Random().nextInt())
+                    .limit(num)
+                    .collect(Collectors.toList());
+        }
+    }
     @PostMapping("/post")
     public String post(@RequestBody List<DeckJson> deckJsons){
         log.info("正在批量插入官网上爬取的卡组！");
