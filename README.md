@@ -3,7 +3,7 @@
 Spring Boot 2.6.3 + MyBatis-Plus + MySQL 的卡组/战报服务。
 桌面记牌器上报对局、爬虫灌卡组、网站查询卡组，都打到这一个服务上。
 
-> 本目录是 [gwent-mirror-all](../README.md) 一体化项目的后端层；
+> 本目录是 [gwent-mirror-all](https://github.com/1053278842/GwentMirrorAllInOne) 一体化项目的后端层；
 > 单独跑、单独改都可以，容器里它是 `docker/wait-for-mysql.sh` 拉起的那个 Java 进程（端口 8081）。
 
 ---
