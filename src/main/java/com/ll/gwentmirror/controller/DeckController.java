@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 import java.util.stream.Collectors;
@@ -71,11 +72,15 @@ public class DeckController {
                     .map(BeansUtils::deckToDeckJons)
                     .collect(Collectors.toList());
         } else {
-            return allDeck.stream()
+            // 原实现用 sorted((a,b) -> new Random().nextInt()) 当比较器，
+            // 违反 TimSort 的传递性契约，数据量一多就会抛
+            // "Comparison method violates its general contract!" -> 接口 500。
+            // 改成先转 DTO 再洗牌取前 num 个，语义相同且稳定。
+            List<DeckJson> deckJsons = allDeck.stream()
                     .map(BeansUtils::deckToDeckJons)
-                    .sorted((a, b) -> new Random().nextInt())
-                    .limit(num)
                     .collect(Collectors.toList());
+            Collections.shuffle(deckJsons, new Random());
+            return deckJsons.stream().limit(num).collect(Collectors.toList());
         }
     }
     @PostMapping("/post")

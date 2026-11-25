@@ -63,5 +63,9 @@ public class Deck implements Serializable {
     @TableField("total")
     private Integer total;
 
+    // 运行时装配的派生字段，数据库没有对应列；不加 exist=false 时 MyBatis-Plus
+    // 会把实体映射成 card_list 列，导致 SELECT ... FROM deck 全部报
+    // "Unknown column 'card_list' in 'field list'"。
+    @TableField(exist = false)
     private List<Card> cardList;
 }
