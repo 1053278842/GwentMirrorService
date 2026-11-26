@@ -1,128 +1,115 @@
-# GwentMirrorService · 卡组镜像站后端
+# GwentMirrorService · 卡组与战报服务
 
-Spring Boot 2.6.3 + MyBatis-Plus + MySQL 的卡组/战报服务。
-桌面记牌器上报对局、爬虫灌卡组、网站查询卡组，都打到这一个服务上。
+**记牌器上报一局 → 拆成四张表落库 → 网站按卡牌搜到这套牌。**
 
-> 本目录是 [gwent-mirror-all](https://github.com/1053278842/GwentMirrorAllInOne) 一体化项目的后端层；
-> 单独跑、单独改都可以，容器里它是 `docker/wait-for-mysql.sh` 拉起的那个 Java 进程（端口 8081）。
+昆特牌站点要回答「哪套牌带这张卡」，得先把零散的对局攒成结构化的卡组。
+这个 Spring Boot 服务就是攒数据的地方：接记牌器战报、接爬虫批量卡组、对外提供按卡牌反查卡组的接口。
+单表最大的 `deck` 用牌表哈希当主键，重复上报不会让表膨胀。
 
----
-
-## 1. 它负责什么
-
-| 能力 | 入口 |
-| --- | --- |
-| 卡组查询（全量 / 按包含的卡牌 / 最新随机） | `GET /deck/api/getDecks`、`/deck/api/getDecksByIds`、`/deck/api/getRandomDecksLast` |
-| 爬虫批量入库 | `POST /deck/api/post`（`List<DeckJson>`） |
-| 官网卡组 id 水位 | `GET /deck/api/maxid` |
-| 对局战报入库 | `POST /battle/api/save` |
-| 版本水位（客户端判断是否更新本地卡组库） | `POST /version/api/getId` |
-| 客户端安装包下载 / 探活 | `GET /download`、`/upload`、`/good` |
-
-## 2. 代码结构
+![Java](https://img.shields.io/badge/Java-8%2B-orange) ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-2.6.3-6DB33F) ![MySQL](https://img.shields.io/badge/MySQL-8.0-4479A1) ![MyBatis-Plus](https://img.shields.io/badge/MyBatis--Plus-3.3.1-red)
 
 ```text
-src/main/java/com/ll/gwentmirror/
-├─ GwentMirrorApplication.java     # 启动类
-├─ config/WebMvcConfig.java        # /static/** 资源映射
-├─ controller/
-│  ├─ DeckController.java          # 卡组查询 + 批量写入 + 官网 id 水位
-│  ├─ BattleController.java        # 战报接收
-│  ├─ VersionController.java       # 版本水位
-│  └─ FileController.java          # 安装包上传/下载
-├─ entity/                         # Deck / DeckJson / Player / Battle / PlayerBattleInfo / Version / Card
-├─ mapper/                         # MyBatis-Plus Mapper（自定义 SQL 在 resources/mapper/*.xml）
-├─ service/impl/
-│  ├─ DeckServiceImpl.java         # 分页、按 id 集合匹配、版本增量
-│  └─ BattleServiceImpl.java       # 一个事务里写 battle + 2×player_battle_info + deck
-└─ utils/BeansUtils.java           # 客户端 JSON → 实体（最核心的转换层）
+POST /battle/api/save  →  player + deck + battle + 2×player_battle_info   （一个事务写完）
+
++---------------------+-------+
+| deck                | 497   |   ← 477 样例 + 爬虫新增 + 回放产生的
+| battle              | 8     |   ← 每局一行
+| player              | 6     |   ← service_id 去重
+| player_battle_info  | 16    |   ← 每局两条（左右各一）
++---------------------+-------+
 ```
 
-数据库表结构 + 477 个样例卡组在 [GwentMirror.sql](GwentMirror.sql)，
-容器首次启动时由 `docker/entrypoint.sh` 自动导入。
+## 这是什么
 
-## 3. 单独运行
+1. 记牌器打完一局，把双方牌表与回合比分 POST 过来（报文就是内存里读到的原始结构）；
+2. 爬虫从官网批量灌卡组，同一套牌只存一行；
+3. 网站按「包含这些牌」反查，接口由本服务提供。
+
+它是一体化镜像里的那个 Java 进程（端口 8081），也可以单独跑。
+
+## 能干什么
+
+- **一局战报一次事务落四表** —— battle 拿主键 → 两条战报插入 → 回填左右 id，中途失败整局回滚
+- **同一套牌只存一行** —— 牌表集合的哈希当主键，`ON DUPLICATE KEY UPDATE` 只累加命中次数
+- **按包含卡牌检索** —— `LOCATE(卡牌id, cards)`，一条 SQL 支持「同时包含这几张牌」
+- **爬虫增量灌库** —— `/deck/api/maxid` 给水位，爬虫只拉比它新的
+- **给客户端判版本** —— `/version/api/getId` 返回版本记录，客户端据此决定是否更新本地卡组库
+
+## Quick Start
+
+前提：JDK 8+、Maven 3.6+、本地 MySQL 8。
 
 ```bash
-# 1) 准备库（MySQL 8，字符集 utf8mb4 / 排序规则 utf8mb4_0900_ai_ci）
 mysql -uroot -p -e "CREATE DATABASE GwentMirror CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;"
 mysql -uroot -p GwentMirror < GwentMirror.sql
-
-# 2) 改配置：src/main/resources/application.yml 的 datasource
-#    （仓库里默认指向作者的线上库，本地跑必须换掉）
-
-# 3) 启动
+# 改 src/main/resources/application.yml 的 datasource（仓库里默认指向作者的线上库）
 mvn spring-boot:run
-# 或
-mvn -DskipTests package && java -jar target/GwentMirror-*.jar --server.port=8081
+curl -s http://localhost:8081/deck/api/maxid
 ```
 
-验证：
+不想装 JDK？用一体化镜像：[GwentMirrorAllInOne](https://github.com/1053278842/GwentMirrorAllInOne)
+的 `docker run` 里已经带了这个服务。细节见 [docs/getting-started.md](docs/getting-started.md)。
+
+## 用起来是什么样
+
+| 调用方 | 打哪个接口 | 得到什么 |
+| --- | --- | --- |
+| 记牌器（Windows） | `POST /battle/api/save` | 一局拆四表 |
+| 爬虫（Python） | `GET /deck/api/maxid` → `POST /deck/api/post` | 增量灌卡组 |
+| 网站（浏览器） | `GET /deck/api/getDecksByIds?ids=…` | 包含这些牌的卡组 |
+| 网站首屏 | `GET /deck/api/getRandomDecksLast?num=50` | 版本水位之后的随机卡组 |
+| 记牌器启动时 | `POST /version/api/getId` | 版本偏移记录 |
+
+## 怎么实现的
+
+```mermaid
+flowchart LR
+    C["记牌器 / 爬虫"] -->|"JSON"| CT["Controller"]
+    CT --> SV["ServiceImpl"]
+    SV --> UT["BeansUtils<br/>JSON → 实体"]
+    SV --> MP["Mapper<br/>+ mapper/*.xml"]
+    MP --> DB[("MySQL 8")]
+    DB --> R["卡组列表 / 战报"]
+```
+
+- **转换层**：`BeansUtils` 把客户端原始 JSON 拆成 `player`/`deck`/`battle`/`player_battle_info` 四类实体
+- **事务**：`BattleServiceImpl.saveBattleInfo()` 一个事务内插 battle → 插两条 pbi → 回填左右 id
+- **去重**：`deck.id = hash(frozenset(牌表))`，`INSERT … ON DUPLICATE KEY UPDATE` 只累加 `total`
+
+细节见 [docs/architecture.md](docs/architecture.md) 与 [docs/database.md](docs/database.md)。
+
+## 部署方式
+
+| 方式 | 命令 | 适用 |
+| --- | --- | --- |
+| 一体化镜像（推荐） | 见 [GwentMirrorAllInOne](https://github.com/1053278842/GwentMirrorAllInOne) | 连 MySQL 一起要 |
+| 打 jar | `mvn -DskipTests package && java -jar target/GwentMirror-*.jar` | 已有 MySQL |
+| 源码运行 | `mvn spring-boot:run` | 改代码 |
+
+## 文档
+
+| 文档 | 内容 |
+| --- | --- |
+| [getting-started](docs/getting-started.md) | 建库、导入 SQL、启动、验证、容器里的启动方式 |
+| [architecture](docs/architecture.md) | 代码结构、转换层、事务边界 |
+| [database](docs/database.md) | 表结构、指纹去重 SQL、`LOCATE` 检索、常用 SQL |
+| [api](docs/api.md) | 接口清单、战报报文、curl 示例 |
+| [changes](docs/changes.md) | 相对上游修的 3 个必现 500 |
+
+## 说明
+
+- 版权归原作者 [@1053278842](https://github.com/1053278842)；本仓库只做整合与缺陷修复。
+- `GwentMirror.sql` 里的 477 套卡组来自官网公开接口，仅做展示与检索。
+
+<details>
+<summary>English</summary>
+
+Spring Boot 2.6 + MyBatis-Plus + MySQL service behind the Gwent deck site:
+ingests tracker battle reports and crawled decks, exposes deck search by card.
 
 ```bash
-curl http://localhost:8081/deck/api/maxid
-curl "http://localhost:8081/deck/api/getRandomDecksLast?num=3"
-curl -X POST http://localhost:8081/version/api/getId
+mysql -uroot -p GwentMirror < GwentMirror.sql && mvn spring-boot:run
+curl -s http://localhost:8081/deck/api/maxid
 ```
 
-## 4. 关键实现
-
-### 4.1 卡组指纹去重
-
-客户端和爬虫都用「牌表集合的哈希」当 `deck.id`（与顺序无关），入库走：
-
-```sql
-INSERT INTO deck (...) VALUES (...)
-ON DUPLICATE KEY UPDATE
-  total  = total + 1,
-  name   = IF(time < VALUES(time), name, VALUES(name)),
-  author = IF(time < VALUES(time), author, VALUES(author)),
-  time   = IF(time < VALUES(time), time, VALUES(time));
-```
-
-同一套牌反复出现只累加 `total` 并刷新最新名称/时间，表不会膨胀。
-
-### 4.2 战报拆解（`BeansUtils` + `BattleServiceImpl`）
-
-`POST /battle/api/save` 的报文是记牌器从游戏内存读出来的原始结构（字段名见 `desktop/main/dao/CardDao.py:getBattleInfo`）：
-
-```jsonc
-{ "GameStatus": 3, "GameMode": 1, "GameId": 1732..., "BattleType": 2,
-  "roundInfos": [...], "curr_round_index": 2, "winner_playId": 1, "end_game_reason": 0,
-  "players": [ { "player_name": "...", "service_id": 900..., "MMR": 9600, "rank": 0,
-                 "leader_id": 200087, "stratagem_id": 0, "faction_id": 4,
-                 "decks": [200087, 0, 202115, ...], "deckId": 123456789 } ] }
-```
-
-服务端拆成 `player` / `deck` / `battle` / `player_battle_info` 四类实体，同一事务内：
-插 battle 拿主键 → 两条 pbi 插入拿 id → 回填 battle 的 `left/right_player_battle_info_id`。
-
-### 4.3 按包含卡牌检索
-
-```sql
-SELECT ... FROM deck
-WHERE 1=1
-  <foreach collection="idArray" item="cid" open="and" separator="and">
-    LOCATE(#{cid}, cards) > 0 OR stratagem_card_id = #{cid}
-  </foreach>
-ORDER BY ${sortFiled} DESC
-LIMIT #{pageStart}, #{pageEnd}
-```
-
-`cards` 存的是逗号分隔的 id 串，用 `LOCATE` 做子串匹配；因为战略卡 id 不一定写进 `cards`，额外补了 `stratagem_card_id` 条件。
-
-## 5. 相对上游修的两个必现问题
-
-| 位置 | 现象 | 修法 |
-| --- | --- | --- |
-| `entity/Deck.java` | `cardList` 是运行期派生字段，MyBatis-Plus 却把它当 `card_list` 列查，`/deck/api/getDecks` 直接 500（`Unknown column 'card_list'`） | 加 `@TableField(exist = false)` |
-| `controller/DeckController.java` | `/getRandomDecksLast` 用 `sorted((a,b) -> new Random().nextInt())` 当比较器，违反 TimSort 传递性契约，数据一多就抛 `Comparison method violates its general contract!` → 随机 500 | 先转 DTO 再 `Collections.shuffle` 取前 N |
-| `resources/mapper/PlayerMapper.xml` | MySQL 8.0.2 起 `RANK` 是保留字，插玩家时 SQL 语法错误，`/battle/api/save` 全链路 500 | 列名加反引号 `` `rank` `` |
-
-## 6. 和一键容器的关系
-
-* 容器里用 `SPRING_DATASOURCE_*` 之外的方式覆盖配置：`docker/wait-for-mysql.sh` 以命令行参数传
-  `--spring.datasource.url/username/password`，账号是 `gwent/gwent123`；
-* 数据库地址固定 `127.0.0.1:3306`（同容器内的 mysqld），不对外暴露；
-* 日志在容器内 `/var/log/gwent/backend.log`（`docker logs -f gwent-mirror` 也能看到），
-  MyBatis 的 stdout SQL 日志较啰嗦，排查问题时可临时把 `mybatis-plus.configuration.log-impl` 关掉。
+</details>
